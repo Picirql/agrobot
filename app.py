@@ -391,17 +391,23 @@ for message in st.session_state.messages:
 
 def stream_agrobot_response(prompt: str):
     """Yield text chunks from Gemini for use with st.write_stream."""
-    response_stream = client.models.generate_content_stream(
-        model=MODEL_NAME,
-        contents=build_model_input(prompt),
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_INSTRUCTION,
-            tools=[get_weather],
-        ),
-    )
-    for chunk in response_stream:
-        if chunk.text:
-            yield chunk.text
+    try:
+        response_stream = client.models.generate_content_stream(
+            model=MODEL_NAME,
+            contents=build_model_input(prompt),
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_INSTRUCTION,
+                tools=[get_weather],
+            ),
+        )
+        for chunk in response_stream:
+            if chunk.text:
+                yield chunk.text
+    except APIError:
+        yield (
+            "⚠️ Gemini's API hit a temporary error and couldn't complete this response. "
+            "Please try asking again in a moment."
+        )
 
 
 # ---------------------------------------------------------------------------
