@@ -11,6 +11,8 @@ from google.genai import types
 from google.genai.errors import APIError
 from pypdf import PdfReader
 
+from utils import get_weather
+
 load_dotenv(override=True)
 
 MODEL_NAME = "gemini-2.5-flash"
@@ -34,6 +36,7 @@ Instructions:
 - Structure your responses clearly using markdown formatting (bullet points, bold text, or tables if comparing things).
 - If a user asks a question completely unrelated to agriculture, farming, plants, weather, soil, or gardening, politely decline to answer, explaining that you are specialized in agriculture.
 - If the user provides symptoms of crop/plant issues, ask clarifying questions (e.g., region, soil type, watering habits) if necessary, or provide organic and chemical control options.
+- When a user asks about current weather conditions for a location, use the get_weather tool to fetch live data and incorporate it into farming-relevant advice. If the tool returns an error, let the user know the weather lookup failed and answer from general knowledge instead.
 """
 
 QUICK_PROMPTS = [
@@ -56,6 +59,11 @@ QUICK_PROMPTS = [
         "icon": "🌾",
         "title": "Disease Diagnosis",
         "prompt": "Leaf symptoms: yellowing edges and brown spots on cucumber leaves.",
+    },
+    {
+        "icon": "🌦️",
+        "title": "Weather Check",
+        "prompt": "What's the current weather in Mumbai, and how should it affect my farming plans today?",
     },
 ]
 
@@ -365,7 +373,7 @@ st.markdown(
 # ---------------------------------------------------------------------------
 if not st.session_state.messages:
     st.markdown('<p class="agrobot-section-label">Quick start</p>', unsafe_allow_html=True)
-    cols = st.columns(4)
+    cols = st.columns(5)
     for col, item in zip(cols, QUICK_PROMPTS):
         with col:
             card_label = f"{item['icon']}  {item['title']}\n\n{item['prompt']}"
@@ -386,7 +394,10 @@ def stream_agrobot_response(prompt: str):
     response_stream = client.models.generate_content_stream(
         model=MODEL_NAME,
         contents=build_model_input(prompt),
-        config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION),
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_INSTRUCTION,
+            tools=[get_weather],
+        ),
     )
     for chunk in response_stream:
         if chunk.text:
